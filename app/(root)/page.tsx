@@ -1,12 +1,23 @@
 import HeaderBox from '@/components/HeaderBox';
+import RecentTrasaction from '@/components/RecentTrasaction';
 import RightSideBar from '@/components/RightSideBar';
 import TotalBalanceBank from '@/components/TotalBalanceBank';
+import { getAccount, getAccounts } from '@/lib/actions/bank.action';
 import { getLoggedInUser } from '@/lib/actions/user.action';
 import { redirect } from 'next/navigation';
 
-const Home = async () => {
+const Home = async ({ searchParams: { id, page } }: SearchParamProps) => {
+  const currentPage = Number(page as string) || 1;
   const loggedIn = await getLoggedInUser();
   if (!loggedIn) redirect('sign-in');
+
+  const accounts = await getAccounts({ userId: loggedIn.$id });
+  const accountsData = accounts?.data;
+  if (!accounts) return;
+
+  const appwriteItemId = (id as string) || accountsData[0]?.appwriteItemId;
+
+  const account = await getAccount({ appwriteItemId });
 
   return (
     <section className="no-scrollbar flex w-full flex-row max-xl:max-h-screen max-xl:overflow-y-scroll">
@@ -15,21 +26,26 @@ const Home = async () => {
           <HeaderBox
             type="greeting"
             title="Welcome"
-            user={loggedIn.name || 'Guest'}
+            user={loggedIn.firstName || 'Guest'}
             subtext="access and manage your account and transaction efficiently"
           />
           <TotalBalanceBank
-            accounts={[]}
-            totalBanks={1}
-            totalCurrentBalance={1250.24}
+            accounts={accountsData}
+            totalBanks={accounts?.totalBanks}
+            totalCurrentBalance={accounts?.totalCurrentBalance}
           />
         </header>
-        RecentTrasaction
+        <RecentTrasaction
+          accounts={accountsData}
+          transactions={account?.transactions}
+          appwriteItemId={appwriteItemId}
+          page={currentPage}
+        />
       </div>
       <RightSideBar
         user={loggedIn}
-        transactions={[]}
-        banks={[{ currentBalance: 123.23 }, { currentBalance: 123.23 }]}
+        transactions={account?.transactions}
+        banks={accountsData?.slice(0, 2)}
       />
     </section>
   );
